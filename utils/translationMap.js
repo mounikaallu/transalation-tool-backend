@@ -54,7 +54,7 @@ const translationMap = {
 
   //Account details header
   "QTY": "QTÉ",
-  "ACCOUNT DETAILS": "DÉTAILS DU COMPTE",
+  // "ACCOUNT DETAILS": "DÉTAILS DU COMPTE",
   "EXTENDED": "DÉTAIL DES NOUVEAUX FRAIS",
   "SUB TOTAL": "SOUS-TOTAL",
   //Account totals

@@ -2,8 +2,9 @@ const path = require("path");
 const { extractTextWithBounds } = require("../services/pdfBoxExtractor");
 const { generateTranslatedPDF } = require("../services/pdfGenerator");
 const { removeTextLayer } = require("../services/removeTextLayer");
-const { formatText } = require("../services/textFormatter");
+const { formatText, isValidForTranslation } = require("../services/textFormatter");
 const translationMap = require("../utils/translationMap");
+const { translateToFrench } = require("../services/openAITranslator");
 
 exports.handleUpload = async (req, res) => {
   try {
@@ -19,24 +20,51 @@ exports.handleUpload = async (req, res) => {
     // Step 2: Extract text with coordinates
     const textBlocks = await extractTextWithBounds(filePath);
 
-    // Step 3: Apply translationMap and dynamic formatters
-    const translatedBlocks = textBlocks.map((block) => {
-      let translatedText = block.text;
+    // Step 3: Apply translationMap and dynamic OpenAI translations
 
-      // Static label replacement
-      if (translationMap[translatedText]) {
-        translatedText = translationMap[translatedText];
-      } else {
-        // Apply date & currency formatting
+    const translatedBlocks = await Promise.all(
+      textBlocks.map(async (block) => {
+        let translatedText = block.text;
+
+        // Check if the text exists in the translationMap
+        if (translationMap[translatedText]) {
+          translatedText = translationMap[translatedText];
+        } else if (isValidForTranslation(translatedText)) {
+          // Use OpenAI for dynamic translation
+          translatedText = await translateToFrench(translatedText);
+
+          // Cache the new translation
+          translationMap[block.text] = translatedText;
+        }
+
+        // Apply additional formatting if needed
         translatedText = formatText(translatedText);
-      }
 
-      return {
-        ...block,
-        translatedText,
-        originalText: block.text,
-      };
-    });
+        return {
+          ...block,
+          translatedText,
+          originalText: block.text,
+        };
+      })
+    );
+    
+    // const translatedBlocks = textBlocks.map((block) => {
+    //   let translatedText = block.text;
+
+    //   // Static label replacement
+    //   if (translationMap[translatedText]) {
+    //     translatedText = translationMap[translatedText];
+    //   } else {
+    //     // Apply date & currency formatting
+    //     translatedText = formatText(translatedText);
+    //   }
+
+    //   return {
+    //     ...block,
+    //     translatedText,
+    //     originalText: block.text,
+    //   };
+    // });
 
     // Step 4: Generate new PDF
     const { translatedFileName, translatedPath } = await generateTranslatedPDF(
